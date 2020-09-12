@@ -3,6 +3,7 @@ package nl.andrewlalis.threadripper.engine;
 import lombok.extern.slf4j.Slf4j;
 import nl.andrewlalis.threadripper.particle.Particle;
 
+import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.Callable;
 
@@ -14,24 +15,40 @@ import java.util.concurrent.Callable;
 public class ParticleUpdater implements Callable<ParticleUpdate> {
 	private final Particle focusParticle;
 	private final Set<Particle> particles;
+	private final boolean allowCollision;
 
-	public ParticleUpdater(Particle focusParticle, Set<Particle> particles) {
+	public ParticleUpdater(
+			Particle focusParticle,
+			Set<Particle> particles,
+			boolean allowCollision
+	) {
 		this.focusParticle = focusParticle;
 		this.particles = particles;
+		this.allowCollision = allowCollision;
 	}
 
 	@Override
 	public ParticleUpdate call() throws Exception {
 		double accelerationX = 0L;
 		double accelerationY = 0L;
+		Set<Particle> collidesWith = new HashSet<>();
 		for (Particle particle : this.particles) {
 			if (!particle.equals(this.focusParticle)) {
 				Vec2 partialAcceleration = this.computeAcceleration(particle);
 				accelerationX += partialAcceleration.getX();
 				accelerationY += partialAcceleration.getY();
+
+				// Collision detection:
+				final double distance = this.focusParticle.getPosition().distance(particle.getPosition());
+				if (
+						Math.abs(this.focusParticle.getRadius() - particle.getRadius()) <= distance
+						&& distance <= (this.focusParticle.getRadius() + particle.getRadius())
+				) {
+					collidesWith.add(particle);
+				}
 			}
 		}
-		return new ParticleUpdate(this.focusParticle, new Vec2(accelerationX, accelerationY));
+		return new ParticleUpdate(this.focusParticle, new Vec2(accelerationX, accelerationY), collidesWith);
 	}
 
 	/**
@@ -51,17 +68,13 @@ public class ParticleUpdater implements Callable<ParticleUpdate> {
 		final double gravityNewtons = Constants.G * (this.focusParticle.getMass() * other.getMass()) / Math.pow(radius, 2);
 		final double gravityAcceleration = gravityNewtons / this.focusParticle.getMass();
 		final Vec2 gravityAccelerationVector = Vec2.fromPolar(gravityAcceleration, angle);
-//		log.info(
-//				"Force of gravity between particles {} and {} is {} Newtons.\nCauses {} m/s^2 acceleration on particle {}.",
-//				this.focusParticle.getId(),
-//				other.getId(),
-//				gravityNewtons,
-//				gravityAcceleration,
-//				this.focusParticle.getId()
-//		);
 
 		final double emNewtons = Constants.Ke * (this.focusParticle.getCharge() * other.getCharge()) / Math.pow(radius, 2);
-		final double emAcceleration = emNewtons / this.focusParticle.getMass();
+		final boolean isRepulsion = emNewtons < 0.0;
+		double emAcceleration = emNewtons / this.focusParticle.getMass();
+		if (isRepulsion) {
+			emAcceleration *= -1.0;
+		}
 		final Vec2 emAccelerationVector = Vec2.fromPolar(emAcceleration, angle);
 
 		final Vec2 totalAcceleration = gravityAccelerationVector.add(emAccelerationVector);

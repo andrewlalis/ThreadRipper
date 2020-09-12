@@ -1,17 +1,20 @@
 package nl.andrewlalis.threadripper;
 
 import javafx.application.Application;
-import javafx.scene.Group;
+import javafx.beans.value.ChangeListener;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
-import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.paint.Color;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
 import lombok.extern.slf4j.Slf4j;
 import nl.andrewlalis.threadripper.engine.ParticleChamber;
 import nl.andrewlalis.threadripper.engine.Vec2;
-import nl.andrewlalis.threadripper.particle.Particle;
 import nl.andrewlalis.threadripper.particle.ParticleFactory;
+import nl.andrewlalis.threadripper.render.ParticleChamberRenderer;
 
 /**
  * Main application starting point.
@@ -20,46 +23,34 @@ import nl.andrewlalis.threadripper.particle.ParticleFactory;
 public class ThreadRipperApplication extends Application {
 
 	private final Canvas canvas;
+
 	private final ParticleChamber chamber;
+	private final Thread chamberThread;
+	private final ParticleChamberRenderer renderer;
+	private final Thread renderThread;
 
 	public ThreadRipperApplication() {
-		this.canvas = new Canvas(1000, 1000);
-		this.chamber = new ParticleChamber(canvas);
+		this.canvas = new Canvas(800, 800);
+		this.chamber = new ParticleChamber();
+		this.renderer = new ParticleChamberRenderer(chamber, canvas);
+
+
 		ParticleFactory factory = new ParticleFactory(
-				10000.0,
-				10000000.0,
-				0,
-				0,
-				new Vec2(350, 250),
-				new Vec2(450, 400),
-				new Vec2(10, -2),
-				new Vec2(25, 2)
+				0.1, 100000000000000.0,
+				0, 0,
+				0.5, 5,
+				new Vec2(0, 0), new Vec2(800, 800),
+				new Vec2(-50, -50), new Vec2(50, 50)
 		);
-		for (int i = 0; i < 100; i++) {
+		for (int i = 0; i < 50; i++) {
 			this.chamber.addParticle(factory.build());
 		}
 
-//		this.chamber.addParticle(new Particle(new Vec2(400, 298), new Vec2(19, 0), 100000.0, 0.0));
-//		this.chamber.addParticle(new Particle(new Vec2(400, 300), new Vec2(20, 0), 10000000000.0, 0.0));
-		this.chamber.addParticle(new Particle(new Vec2(400, 500), new Vec2(0, 0), 1000000000000000.0, 0.0));
+		this.chamberThread = new Thread(this.chamber);
+		this.chamberThread.start();
 
-//		ParticleFactory factory1 = new ParticleFactory(
-//				1000000000.0,
-//				10000000000000.0,
-//				0,
-//				0,
-//				new Vec2(700, 700),
-//				new Vec2(900, 900),
-//				new Vec2(0, 0),
-//				new Vec2(0, 0)
-//		);
-//		for (int i = 0; i < 500; i++) {
-//			this.chamber.addParticle(factory1.build());
-//		}
-
-		Thread particleChamberThread = new Thread(chamber);
-		particleChamberThread.setName("ParticleChamber");
-		particleChamberThread.start();
+		this.renderThread = new Thread(this.renderer);
+		this.renderThread.start();
 	}
 
 	public static void main(String[] args) {
@@ -71,22 +62,47 @@ public class ThreadRipperApplication extends Application {
 	public void start(Stage stage) throws Exception {
 		stage.setTitle("ThreadRipper");
 
-		GraphicsContext gc = this.canvas.getGraphicsContext2D();
+		BorderPane borderPane = new BorderPane();
+		borderPane.setCenter(this.canvas);
 
-		gc.setFill(Color.GREEN);
-		gc.fillOval(10, 60, 30, 30);
+		TextField simRateField = new TextField(Double.toString(this.chamber.getSimulationRate()));
+		Button simRateUpdate = new Button("Apply");
+		simRateUpdate.setOnMouseClicked(mouseEvent -> {
+			double simRate = this.chamber.getSimulationRate();
+			try {
+				simRate = Double.parseDouble(simRateField.getText().trim());
+			} catch (NumberFormatException e) {
+				simRateField.clear();
+			}
+			this.chamber.setSimulationRate(simRate);
+		});
+		HBox bottomPanel = new HBox(
+				new Label("Simulation Rate"),
+				simRateField,
+				simRateUpdate
+		);
+		borderPane.setBottom(bottomPanel);
 
-		Group root = new Group();
-		root.getChildren().add(this.canvas);
-		Scene scene = new Scene(root);
+		Scene scene = new Scene(borderPane);
+
+		ChangeListener<Number> sceneSizeListener = (observable, oldValue, newValue) -> {
+			this.canvas.setWidth(scene.getWidth());
+			this.canvas.setHeight(scene.getHeight());
+		};
+		scene.widthProperty().addListener(sceneSizeListener);
+		scene.heightProperty().addListener(sceneSizeListener);
+
 		stage.setScene(scene);
+		stage.setMaximized(true);
 		stage.show();
 	}
 
 	@Override
 	public void stop() throws Exception {
 		this.chamber.setRunning(false);
+		this.chamberThread.join();
+		this.renderer.setRunning(false);
+		this.renderThread.join();
 		super.stop();
-		System.exit(0);
 	}
 }

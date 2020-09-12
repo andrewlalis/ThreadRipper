@@ -50,4 +50,8 @@ public class Vec2 {
 	public String toString() {
 		return String.format("[%f, %f]", this.getX(), this.getY());
 	}
+
+	public Vec2 getCopy() {
+		return new Vec2(this.getX(), this.getY());
+	}
 }

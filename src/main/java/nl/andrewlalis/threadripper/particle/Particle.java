@@ -15,7 +15,7 @@ public class Particle {
 	/**
 	 * Unique id for this particle.
 	 */
-	private long id;
+	private final long id;
 
 	/**
 	 * The particle's position, in meters.
@@ -37,15 +37,25 @@ public class Particle {
 	 */
 	private double charge;
 
+	/**
+	 * The particle's radius, in meters.
+	 */
+	private double radius;
+
 	public Particle(Vec2 position) {
-		this(position, new Vec2(0, 0), 1, 0);
+		this(position, new Vec2(0, 0), 1, 0, 1);
 	}
 
-	public Particle(Vec2 position, Vec2 velocity, double mass, double charge) {
+	public Particle(Vec2 position, double mass, double charge, double radius) {
+		this(position, new Vec2(0, 0), mass, charge, radius);
+	}
+
+	public Particle(Vec2 position, Vec2 velocity, double mass, double charge, double radius) {
 		this.position = position;
 		this.velocity = velocity;
 		this.mass = mass;
 		this.charge = charge;
+		this.radius = radius;
 
 		this.id = NEXT_PARTICLE_ID;
 		NEXT_PARTICLE_ID++;
@@ -93,6 +103,34 @@ public class Particle {
 				this.getCharge(),
 				this.getPosition(),
 				this.getVelocity()
+		);
+	}
+
+	public Particle getCopy() {
+		return new Particle(
+				this.getPosition().getCopy(),
+				this.getVelocity().getCopy(),
+				this.getMass(),
+				this.getCharge(),
+				this.getRadius()
+		);
+	}
+
+	public Particle combine(Particle other) {
+		final Vec2 position = new Vec2(
+				(this.getPosition().getX() + other.getPosition().getX()) / 2.0,
+				(this.getPosition().getY() + other.getPosition().getY()) / 2.0
+		);
+		final Vec2 velocity = new Vec2(
+				(this.getVelocity().getX() + other.getVelocity().getX()) / 2.0,
+				(this.getVelocity().getY() + other.getVelocity().getY()) / 2.0
+		);
+		return new Particle(
+				position,
+				velocity,
+				this.getMass() + other.getMass(),
+				this.getCharge() + other.getCharge(),
+				this.getRadius() + other.getRadius()
 		);
 	}
 }

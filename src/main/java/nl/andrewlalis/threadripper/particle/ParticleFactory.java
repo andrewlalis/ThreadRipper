@@ -9,6 +9,8 @@ public class ParticleFactory {
 	private final double maxMass;
 	private final double minCharge;
 	private final double maxCharge;
+	private final double minRadius;
+	private final double maxRadius;
 	private final Vec2 minPosition;
 	private final Vec2 maxPosition;
 	private final Vec2 minVelocity;
@@ -19,6 +21,8 @@ public class ParticleFactory {
 			double maxMass,
 			double minCharge,
 			double maxCharge,
+			double minRadius,
+			double maxRadius,
 			Vec2 minPosition,
 			Vec2 maxPosition,
 			Vec2 minVelocity,
@@ -28,6 +32,8 @@ public class ParticleFactory {
 		this.maxMass = maxMass;
 		this.minCharge = minCharge;
 		this.maxCharge = maxCharge;
+		this.minRadius = minRadius;
+		this.maxRadius = maxRadius;
 		this.minPosition = minPosition;
 		this.maxPosition = maxPosition;
 		this.minVelocity = minVelocity;
@@ -45,14 +51,20 @@ public class ParticleFactory {
 				random.nextDouble(this.minVelocity.getY(), this.maxVelocity.getY())
 		);
 		final double mass = random.nextDouble(this.minMass, this.maxMass);
-//		final double charge = random.nextDouble(this.minCharge, this.maxCharge);
+		final double charge;
+		if (this.minCharge == 0.0 && this.maxCharge == 0.0) {
+			charge = 0.0;
+		} else {
+			charge = random.nextDouble(this.minCharge, this.maxCharge);
+		}
+		final double radius = random.nextDouble(this.minRadius, this.maxRadius);
 
-		final double charge = 0;
 		return new Particle(
 				position,
 				velocity,
 				mass,
-				charge
+				charge,
+				radius
 		);
 	}
 
